@@ -1,4 +1,3 @@
-from esp import apa102_write
 from machine import Pin
 from time import sleep
 import network
