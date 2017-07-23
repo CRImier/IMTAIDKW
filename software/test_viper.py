@@ -1,6 +1,7 @@
 from machine import Pin
 from time import sleep
 import network
+import machine
 
 wlan = network.WLAN(network.AP_IF)
 wlan.active(True)
@@ -45,10 +46,12 @@ def run(sleep_time=sleep_time):
     prev_i = 3
     while True:
         for i, digit in enumerate(digits):
+            isr = machine.disable_irq()
             shiftOut(mapping[digit])
             columns[prev_i].on()
             latch.on()
             columns[i].off()
+            machine.enable_irq(isr)
             sleep(sleep_time)
             prev_i = i
 
