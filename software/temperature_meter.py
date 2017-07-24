@@ -62,7 +62,6 @@ digit_bytes = [mapping[digit] for digit in digits]
 temperatures = [None, None]
 
 def generate_digit_bytes(temp_str, thermometer_addr):
-    print(thermometer_addr)
     if temp_str[0] == "-":
         temp_str = temp_str[1:]
         negative = True
@@ -116,26 +115,39 @@ def run(sleep_time=0.0001, cycle_counter=50000, update_counter=10000, format_cou
                print("getting temperature")
                try:
                    temperature = ds.read_temp(thermometers[current_thermometer])
-               except OneWireError:
-                   print("sensor {} failed".format(thermometer))
+               except (OneWireError, IndexError):
+                   print("sensor {} failed".format(current_thermometer))
                    is_error = True
                else:
                    temperatures[current_thermometer] = temperature
                if is_error:
                    thermometers = ds.scan()
                    if not thermometers:
-                       print("No sensors found!")
+                       print("no sensors found!")
                        digit_bytes = [mapping[char] for char in " err"]
                    else:
                        is_error = False
             elif run_counter % format_counter == 0 and not is_error:
                print("formatting temperatures for display")
-               temp_str = "{:.1f}".format(temperatures[current_thermometer])
-               print("sensor {} has temperature {}".format(current_thermometer, temp_str))
-               digit_bytes = generate_digit_bytes(temp_str, thermometers[current_thermometer])
+               temperature = temperatures[current_thermometer]
+               if type(temperature) != float:
+                   print("wrong temperature {1} for sensor {0}!".format(current_thermometer, temp_str))
+               else:
+                   temp_str = "{:.1f}".format(temperature)
+                   print("sensor {} has temperature {}".format(current_thermometer, temp_str))
+                   digit_bytes = generate_digit_bytes(temp_str, thermometers[current_thermometer])
             elif run_counter % trigger_counter == 0:
                print("updating temperatures")
-               ds.convert_temp()
+               try:
+                   ds.convert_temp()
+               except OneWireError:
+                   is_error = True
+                   thermometers = ds.scan()
+                   if not thermometers:
+                       print("no sensors found!")
+                       digit_bytes = [mapping[char] for char in " err"]
+                   else:
+                       is_error = False
 
             sleep(sleep_time)
             prev_i = i
