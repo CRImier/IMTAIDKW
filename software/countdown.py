@@ -7,6 +7,9 @@ wlan = network.WLAN(network.AP_IF)
 wlan.active(True)
 wlan.config(essid="\U0001F4A9", password="atpisies1337")
 
+stawlan = network.WLAN(network.STA_IF)
+stawlan.active(False)
+
 columns = [Pin(16, Pin.OUT), Pin(14, Pin.OUT), Pin(12, Pin.OUT), Pin(13, Pin.OUT)]
 
 clock = Pin(5, Pin.OUT)
@@ -48,9 +51,6 @@ mapping = { "0":0b11101110,
 #Bootup things
 for i in range(4):
     columns[i].on()
-thermometers = ds.scan()
-
-current_thermometer = 0
 
 is_error = False
 digits = ["1", "3", "3", "7"]
@@ -65,7 +65,7 @@ def generate_digit_bytes(minutes, seconds):
         m[1] = m[1] | mapping['.']
         return m
     # else, build the list of bytes to shift out
-    m = [0 for i in range(len(temp_str))]
+    m = [0 for i in range(4)]
     m_s = str(minutes)
     if len(m_s) > 1:
         m[0] = mapping[m_s[0]]
@@ -91,26 +91,26 @@ def generate_digit_bytes(minutes, seconds):
 minutes = 0
 seconds = 0
 
-def run(sleep_time=0.0001, tupdate_counter = 1000, tformat_counter = 1100, button_counter = 100):
-    # get counter = 1000
-    # format_counter = 1100
-    # Good luck understanding this lol
-    global digit_bytes, minutes, seconds
+def run(sleep_time=0.0001, tupdate_counter = 1500, tformat_counter = 4000, button_counter = 100):
+    global minutes, seconds
     print("Hello!")
     prev_i = 3
     run_counter = 0
+    digit_bytes = generate_digit_bytes(minutes, seconds)
+    dbl = list(enumerate(digit_bytes))
     while True:
-        for i, digit_byte in enumerate(digit_bytes):
-            isr = machine.disable_irq()
+        for i, digit_byte in dbl:
+            #isr = machine.disable_irq()
             shiftOut(digit_byte)
             columns[prev_i].on()
             latch.on()
             columns[i].off()
-            machine.enable_irq(isr)
+            #machine.enable_irq(isr)
             run_counter += 1
             if run_counter >= tformat_counter:
                print("formatting time")
                digit_bytes = generate_digit_bytes(minutes, seconds)
+               dbl = list(enumerate(digit_bytes))
                run_counter = 0
             elif run_counter % tupdate_counter == 0:
                print("getting time")
@@ -118,8 +118,8 @@ def run(sleep_time=0.0001, tupdate_counter = 1000, tformat_counter = 1100, butto
                diff = t - start_time
                remainder = total_seconds - diff
                minutes, seconds = divmod(remainder, 60)
-
-            sleep(sleep_time)
+            if sleep_time:
+                sleep(sleep_time)
             prev_i = i
 
 total_seconds = countdown_minutes * 60
