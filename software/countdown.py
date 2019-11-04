@@ -17,6 +17,7 @@ latch = Pin(4, Pin.OUT)
 data = Pin(15, Pin.OUT)
 
 countdown_minutes = 80
+button = Pin(0, Pin.IN, Pin.PULL_UP)
 
 @micropython.viper
 def shiftOut(data: int):
@@ -91,11 +92,14 @@ def generate_digit_bytes(minutes, seconds):
 minutes = 0
 seconds = 0
 
-def run(sleep_time=0.0001, tupdate_counter = 1500, tformat_counter = 4000, button_counter = 100):
-    global minutes, seconds
+def run(sleep_time=0.0001, tupdate_counter = 300, tformat_counter = 1000, buttoncheck_counter = 100):
+    global minutes, seconds, total_seconds
     print("Hello!")
     prev_i = 3
     run_counter = 0
+    RELEASED = 0; DEBOUNCED = 1; PRESSED = 2;
+    button_state = RELEASED
+    button_debounce_time = 0
     digit_bytes = generate_digit_bytes(minutes, seconds)
     dbl = list(enumerate(digit_bytes))
     while True:
@@ -108,16 +112,39 @@ def run(sleep_time=0.0001, tupdate_counter = 1500, tformat_counter = 4000, butto
             #machine.enable_irq(isr)
             run_counter += 1
             if run_counter >= tformat_counter:
-               print("formatting time")
-               digit_bytes = generate_digit_bytes(minutes, seconds)
-               dbl = list(enumerate(digit_bytes))
+               #print("formatting time")
+               new_digit_bytes = generate_digit_bytes(minutes, seconds)
+               if new_digit_bytes != digit_bytes:
+                   digit_bytes = new_digit_bytes
+                   dbl = list(enumerate(digit_bytes))
                run_counter = 0
             elif run_counter % tupdate_counter == 0:
-               print("getting time")
+               #print("getting time")
                t = time()
                diff = t - start_time
                remainder = total_seconds - diff
                minutes, seconds = divmod(remainder, 60)
+            elif run_counter % buttoncheck_counter == 0:
+               #print("getting time")
+               new_button_state = not button.value()
+               # True - pressed, False - released
+               if button_state == DEBOUNCED:
+                   if time() - button_debounce_time > 1:
+                       # Second passed, should be enough for debounce
+                       button_state = PRESSED if new_button_state else RELEASED
+                       #print("Button finished debouncing")
+               elif new_button_state and button_state == RELEASED:
+                   #print("Button press detected, state: {}, new state: {}".format(button_state, new_button_state))
+                   # button got pressed
+                   button_debounce_time = time()
+                   button_state = DEBOUNCED
+                   # Removing 10 seconds from the time
+                   total_seconds -= 10*60
+               elif not new_button_state and button_state == PRESSED:
+                   #print("Button press released, state: {}, new state: {}".format(button_state, new_button_state))
+                   button_debounce_time = time()
+                   # button got released
+                   button_state = DEBOUNCED
             if sleep_time:
                 sleep(sleep_time)
             prev_i = i
