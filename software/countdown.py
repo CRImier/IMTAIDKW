@@ -19,6 +19,7 @@ data = Pin(15, Pin.OUT)
 countdown_minutes = 80
 button = Pin(0, Pin.IN, Pin.PULL_UP)
 
+"""
 @micropython.viper
 def shiftOut(data: int):
     GPIO_OUT = ptr32(0x60000300) # GPIO base register
@@ -29,7 +30,15 @@ def shiftOut(data: int):
         GPIO_OUT[reg] = 0x8000 #set or unset pin 15
         GPIO_OUT[1] = 0x20 # set clock pin
         GPIO_OUT[2] = 0x20 # unset clock pin
+"""
 
+def shiftOut(byte):
+    latch.off()
+    for i in range(8):
+        value = byte & 1<<i
+        data.value(value)
+        clock.on()
+        clock.off()
 
 mapping = { "0":0b11101110,
             "1":0b00100010,
